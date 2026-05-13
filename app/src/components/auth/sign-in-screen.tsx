@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@houston-ai/core";
 import { HoustonLogo } from "../shell/experience-card";
 import { onAuthError, signInWithGoogle } from "../../lib/auth";
+import { reportBug } from "../../lib/bug-report";
 import { logger } from "../../lib/logger";
 
 // Microsoft sign-in is temporarily disabled in the UI while the Azure
@@ -23,6 +24,13 @@ type Provider = "google";
 export function SignInScreen() {
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // "Send logs to support" affordance — for non-technical alpha users
+  // who can't reach the in-app Settings → Report Bug flow because they're
+  // stuck on this screen. Three states: idle / sending / sent.
+  const [logsStatus, setLogsStatus] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
+  const [logsIssueId, setLogsIssueId] = useState<string | null>(null);
 
   // Surface OAuth errors that happen AFTER the browser hands off (provider
   // rejection, code-exchange failure, identity already linked to another
@@ -48,6 +56,28 @@ export function SignInScreen() {
       // SignInScreen itself unmounts when the deep-link callback flips the
       // session, so we don't need a "waiting for callback" loading state.
       setPending(null);
+    }
+  };
+
+  const handleSendLogs = async () => {
+    setLogsStatus("sending");
+    try {
+      const issueId = await reportBug({
+        command: "signin_screen_stuck",
+        error:
+          "User reported they are stuck on the sign-in screen and could not reach the in-app Report Bug flow. Logs attached from the SignInScreen send-logs button.",
+        userEmail: null,
+        timestamp: new Date().toISOString(),
+        appVersion: __APP_VERSION__,
+      });
+      setLogsIssueId(issueId);
+      setLogsStatus("sent");
+    } catch (e) {
+      logger.error(`[auth] send-logs failed: ${e}`);
+      setLogsStatus("idle");
+      setError(
+        `Could not send logs automatically: ${e instanceof Error ? e.message : String(e)}. Email them to support manually.`,
+      );
     }
   };
 
@@ -80,6 +110,33 @@ export function SignInScreen() {
         {error && (
           <p className="text-xs text-destructive text-center">{error}</p>
         )}
+
+        {/* Last-resort "send logs" affordance for non-technical alpha users
+         * stuck on this screen. The in-app Settings → Report Bug flow is
+         * unreachable until they're signed in, so we expose the same
+         * report_bug command here with a fixed description. Hardcoded
+         * English / Spanish copy because this whole screen is currently
+         * English-only and adding i18n is its own scope. */}
+        <div className="mt-2 flex flex-col items-center gap-1">
+          {logsStatus === "sent" ? (
+            <p className="text-xs text-muted-foreground text-center">
+              Logs sent to support
+              {logsIssueId ? ` (ref ${logsIssueId})` : ""}. Thanks, we'll
+              follow up.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleSendLogs()}
+              disabled={logsStatus === "sending"}
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              {logsStatus === "sending"
+                ? "Sending logs..."
+                : "Stuck? Send logs to support / ¿Atascado? Enviar logs a soporte"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
