@@ -46,3 +46,17 @@ tracing-appender = { workspace = true }
 # app natively.
 [target."cfg(any(target_os = \"windows\", target_os = \"linux\"))".dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+
+# Windows-only: DPAPI session storage. The Windows Credential Manager
+# (which the `keyring` crate uses) caps `CredentialBlob` at ~2560 bytes,
+# and a Supabase session payload (JWT access_token + JWT user object +
+# provider_token + refresh_token) is reliably 3-4 KB. CredWrite returns
+# ERROR_INVALID_PARAMETER, the keyring crate returns Err, and our
+# previous storage adapter silently swallowed it — sessions worked
+# in-memory but never persisted to disk, so every app close forced a
+# fresh sign-in. We now write the session to a per-user DPAPI-encrypted
+# file under `%LOCALAPPDATA%\com.houston.app\auth\<key>.dpapi` instead.
+# DPAPI binds the ciphertext to the Windows user account so a copied
+# file is useless to another user. See `src/auth.rs` storage module.
+[target."cfg(target_os = \"windows\")".dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }

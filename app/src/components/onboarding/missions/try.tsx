@@ -35,8 +35,16 @@ import { TryDoneScreen } from "../try-done-screen";
  * Magic word the agent emits to signal "tutorial step done, frontend may
  * advance". Stripped from display via `transformContent`. Detected via a
  * feed scan in `tutorialDone`.
+ *
+ * The detection regex is intentionally lenient: codex's gpt-5.5 sometimes
+ * wraps the token in markdown (`**[TUTORIAL_COMPLETE]**`), escapes the
+ * underscore (`[TUTORIAL\_COMPLETE]`), capitalizes a different way, or
+ * tacks on "D" (`[TUTORIAL_COMPLETED]`). The display-stripping replace
+ * uses the same regex so whatever shape lands gets removed from the
+ * final card.
  */
-const TUTORIAL_END_MARKER = "[TUTORIAL_COMPLETE]";
+const TUTORIAL_END_RE = /\[\s*\\?TUTORIAL[_\s\\]+COMPLETED?\s*\]/i;
+const TUTORIAL_END_STRIP_RE = /\*{0,2}\[\s*\\?TUTORIAL[_\s\\]+COMPLETED?\s*\]\*{0,2}/gi;
 
 interface FrameLabels {
   brandLabel: string;
@@ -154,8 +162,8 @@ export function TryMission({
       const item = (feedItems ?? [])[i];
       if (item.feed_type !== "assistant_text") continue;
       const data = item.data;
-      if (typeof data !== "string" || !data.includes(TUTORIAL_END_MARKER)) continue;
-      return data.replace(TUTORIAL_END_MARKER, "").trim();
+      if (typeof data !== "string" || !TUTORIAL_END_RE.test(data)) continue;
+      return data.replace(TUTORIAL_END_STRIP_RE, "").trim();
     }
     return null;
   }, [feedItems]);
@@ -184,8 +192,8 @@ export function TryMission({
   );
 
   const transformContent = useCallback((content: string) => {
-    if (!content.includes(TUTORIAL_END_MARKER)) return { content };
-    return { content: content.replace(TUTORIAL_END_MARKER, "").trim() };
+    if (!TUTORIAL_END_RE.test(content)) return { content };
+    return { content: content.replace(TUTORIAL_END_STRIP_RE, "").trim() };
   }, []);
 
   // Free-typing path. Wrapped by `useSessionMessageQueue` so messages typed
@@ -240,6 +248,22 @@ export function TryMission({
     if (!missionSessionKey) return;
     tauriChat.stop(agentPath, missionSessionKey).catch(console.error);
   }, [agentPath, missionSessionKey]);
+
+  /**
+   * Escape hatch when the agent stalls and never emits the completion
+   * token — observed real users sitting on step 4 for minutes when codex
+   * + gpt-5.5 wraps the marker in markdown or just decides not to emit
+   * it. Stop the in-flight session so the agent doesn't keep producing
+   * output behind the user's back, then call `onContinue` so the parent
+   * advances to the workspace shell. The `useEffect` cleanup that strips
+   * the tutorial section from CLAUDE.md still runs on unmount.
+   */
+  const handleSkipTutorial = useCallback(() => {
+    if (missionSessionKey) {
+      tauriChat.stop(agentPath, missionSessionKey).catch(console.error);
+    }
+    onContinue();
+  }, [agentPath, missionSessionKey, onContinue]);
 
   // Chip click → `createMission` mints an activity, sends the chip text as
   // the first user prompt, and returns the session key. From then on the
@@ -332,6 +356,18 @@ export function TryMission({
               <p className="mt-2 text-sm text-muted-foreground">
                 {t("setup:tutorial.missions.try.workingBody")}
               </p>
+              {/* Escape hatch — only visible once the mission has started,
+               * so it doesn't compete with the chip CTA on the empty
+               * left panel. Hard-coded EN/ES copy because adding i18n
+               * keys for a single line during a hotfix isn't worth the
+               * locale churn. */}
+              <button
+                type="button"
+                onClick={handleSkipTutorial}
+                className="mt-3 text-xs text-muted-foreground underline-offset-2 hover:underline"
+              >
+                Skip tutorial / Saltar tutorial
+              </button>
             </div>
           )}
           {error && (
