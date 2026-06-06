@@ -19,10 +19,17 @@ interface TauriEventModule {
  * Dynamically import the Tauri event module. The specifier is built at
  * runtime so TypeScript does not attempt to resolve it at compile time.
  * Returns null when @tauri-apps/api is not installed (non-Tauri env).
+ *
+ * The ignore comments keep this optional in every bundler: Vite reads
+ * `@vite-ignore`, Turbopack reads `turbopackIgnore` (without it the Next/
+ * Turbopack build of a non-Tauri consumer — e.g. the cloud web app — fails to
+ * resolve the dynamic specifier). webpackIgnore covers webpack-based hosts.
  */
 function importTauriEvents(): Promise<TauriEventModule | null> {
   const mod = ["@tauri-apps", "api", "event"].join("/");
-  return import(/* @vite-ignore */ mod).catch(() => null);
+  return import(
+    /* @vite-ignore */ /* webpackIgnore: true */ /* turbopackIgnore: true */ mod
+  ).catch(() => null);
 }
 
 /**

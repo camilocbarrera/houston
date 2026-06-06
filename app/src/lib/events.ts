@@ -18,6 +18,8 @@
 import type { HoustonEvent } from "@houston-ai/core";
 import { topics } from "@houston-ai/engine-client";
 import { getEngineWs } from "./engine";
+import { isCloudEngineActive } from "./cloud-engine";
+import { subscribeCloudEvents } from "./cloud-events";
 import { legacyEmit, legacyListen } from "./os-bridge";
 
 type Unsub = () => void;
@@ -34,6 +36,11 @@ function toHandler<T>(handler: (ev: T) => void) {
  * added once regardless of how many UI hooks mount.
  */
 export function subscribeHoustonEvents(handler: (ev: HoustonEvent) => void): Unsub {
+  // Cloud-engine mode: fold the shared Supabase event stream (the box can't
+  // hold a reliable WS), so the desktop reacts to the SAME events as the web.
+  if (isCloudEngineActive()) {
+    return subscribeCloudEvents(handler);
+  }
   const ws = getEngineWs();
   ws.subscribe([topics.firehose]);
   return ws.onEvent(toHandler(handler));

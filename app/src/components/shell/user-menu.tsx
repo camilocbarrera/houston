@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LogOut, MessageSquare, User } from "lucide-react";
+import { Cloud, Laptop, LogOut, MessageSquare, User } from "lucide-react";
 import { useSession } from "../../hooks/use-session";
 import { signOut } from "../../lib/auth";
+import {
+  disableCloudEngine,
+  enableCloudEngine,
+  isCloudEngineActive,
+} from "../../lib/cloud-engine";
 import { useUIStore } from "../../stores/ui";
 import { FeedbackDialog } from "./feedback-dialog";
 
@@ -22,6 +27,26 @@ export function UserMenu() {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const setViewMode = useUIStore((s) => s.setViewMode);
+  // Cloud vs local engine. Read once per render from localStorage; toggling
+  // reloads the window so the boot path repoints the engine (see cloud-engine.ts).
+  const cloudActive = isCloudEngineActive();
+  const [cloudPending, setCloudPending] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+
+  const handleToggleEngine = async () => {
+    if (cloudActive) {
+      disableCloudEngine();
+      return;
+    }
+    setCloudPending(true);
+    setCloudError(null);
+    try {
+      await enableCloudEngine();
+    } catch (e) {
+      setCloudError(e instanceof Error ? e.message : String(e));
+      setCloudPending(false);
+    }
+  };
 
   if (!session?.user) return null;
 
@@ -89,6 +114,27 @@ export function UserMenu() {
                 <MessageSquare className="h-3.5 w-3.5" />
                 {t("userMenu.sendFeedback")}
               </button>
+              {/* TEMPORARY engine switch — local sidecar vs the user's cloud box
+               * (the same engine the web app uses, so data syncs across clients). */}
+              <button
+                onClick={() => void handleToggleEngine()}
+                disabled={cloudPending}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {cloudActive ? (
+                  <Laptop className="h-3.5 w-3.5" />
+                ) : (
+                  <Cloud className="h-3.5 w-3.5" />
+                )}
+                {cloudPending
+                  ? "Connecting…"
+                  : cloudActive
+                    ? "Use local engine"
+                    : "Use cloud engine (sync)"}
+              </button>
+              {cloudError && (
+                <p className="px-3 pb-2 text-xs text-destructive">{cloudError}</p>
+              )}
               <button
                 onClick={handleSignOut}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-destructive"

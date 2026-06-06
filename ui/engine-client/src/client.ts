@@ -87,15 +87,35 @@ import { planAttachmentUploadBatches } from "./attachments";
 export interface HoustonClientOptions {
   baseUrl: string;
   token: string;
+  /**
+   * How REST requests carry the token.
+   *  - `"bearer"` (default): `Authorization: Bearer <token>` header. Used by the
+   *    desktop talking to its local sidecar.
+   *  - `"query"`: `?token=<token>` on the URL. Required when the engine sits
+   *    behind an ingress proxy that STRIPS the Authorization header (the Upstash
+   *    Box preview proxy does this), e.g. the desktop talking to a cloud box.
+   *
+   * The WS already authenticates via `?token=` regardless, so this only affects
+   * the REST surface.
+   */
+  authMode?: "bearer" | "query";
 }
 
 export class HoustonClient {
   private readonly baseUrl: string;
   private readonly token: string;
+  private readonly authMode: "bearer" | "query";
 
   constructor(opts: HoustonClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/$/, "");
     this.token = opts.token;
+    this.authMode = opts.authMode ?? "bearer";
+  }
+
+  /** Auth headers for a REST call — empty in query-token mode (the token rides
+   *  on the URL instead, since the proxy strips Authorization). */
+  private authHeaders(): Record<string, string> {
+    return this.authMode === "query" ? {} : { Authorization: `Bearer ${this.token}` };
   }
 
   // ---------- transport ----------
@@ -108,18 +128,19 @@ export class HoustonClient {
     signal?: AbortSignal,
   ): Promise<T> {
     let url = `${this.baseUrl}/v1${path}`;
+    const q = new URLSearchParams();
     if (query) {
-      const q = new URLSearchParams();
       for (const [k, v] of Object.entries(query)) {
         if (v !== undefined && v !== null) q.set(k, v);
       }
-      const s = q.toString();
-      if (s) url += `?${s}`;
     }
+    if (this.authMode === "query") q.set("token", this.token);
+    const s = q.toString();
+    if (s) url += `?${s}`;
     const res = await fetch(url, {
       method,
       headers: {
-        Authorization: `Bearer ${this.token}`,
+        ...this.authHeaders(),
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -140,11 +161,14 @@ export class HoustonClient {
     body?: BodyInit,
     contentType?: string,
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.token}`,
-    };
+    const headers: Record<string, string> = { ...this.authHeaders() };
     if (contentType) headers["Content-Type"] = contentType;
-    const res = await fetch(`${this.baseUrl}/v1${path}`, {
+    const sep = path.includes("?") ? "&" : "?";
+    const url =
+      this.authMode === "query"
+        ? `${this.baseUrl}/v1${path}${sep}token=${encodeURIComponent(this.token)}`
+        : `${this.baseUrl}/v1${path}`;
+    const res = await fetch(url, {
       method,
       headers,
       body,
@@ -647,11 +671,20 @@ export class HoustonClient {
 
   // ---------- sessions ----------
 
-  /** Start a session. `agentPath` is percent-encoded as a single path segment. */
+  /**
+   * Start a session. In bearer mode `agentPath` is a single percent-encoded
+   * path segment. In query mode (behind a path-decoding proxy) we POST to a
+   * sentinel `_` segment and carry the agent path in the body instead — the
+   * engine's `StartRequest.agentPath` wins over the URL, and a body is never
+   * path-decoded by the proxy.
+   */
   startSession(
     agentPath: string,
     req: SessionStartRequest,
   ): Promise<SessionStartResponse> {
+    if (this.authMode === "query") {
+      return this.request("POST", `/agents/_/sessions`, { ...req, agentPath });
+    }
     return this.request("POST", `/agents/${this.seg(agentPath)}/sessions`, req);
   }
   cancelSession(agentPath: string, sessionKey: string): Promise<SessionCancelResponse> {

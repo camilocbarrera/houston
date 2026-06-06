@@ -14,6 +14,13 @@
 import { HoustonClient, EngineWebSocket } from "@houston-ai/engine-client";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCloudEngineConfig, isCloudEngineActive, verifyCloudOrRevert } from "./cloud-engine";
+
+type EngineConfig = {
+  baseUrl: string;
+  token: string;
+  authMode?: "bearer" | "query";
+};
 
 declare global {
   interface Window {
@@ -24,15 +31,20 @@ declare global {
   }
 }
 
-function resolveConfig(): { baseUrl: string; token: string } | null {
+function resolveConfig(): EngineConfig | null {
+  // Cloud mode wins: when the user has switched the desktop onto their cloud
+  // box, target it directly (token on the URL — the box proxy strips Bearer).
+  // The local sidecar handshake is ignored while cloud mode is active.
+  const cloud = getCloudEngineConfig();
+  if (cloud) return cloud;
   if (typeof window !== "undefined" && window.__HOUSTON_ENGINE__) {
-    return window.__HOUSTON_ENGINE__;
+    return { ...window.__HOUSTON_ENGINE__, authMode: "bearer" };
   }
   // Dev fallback — if HOUSTON_ENGINE_BASE / TOKEN present on Vite env, use them.
   const baseUrl =
     (import.meta as any).env?.VITE_HOUSTON_ENGINE_BASE ?? null;
   const token = (import.meta as any).env?.VITE_HOUSTON_ENGINE_TOKEN ?? null;
-  if (baseUrl && token) return { baseUrl, token };
+  if (baseUrl && token) return { baseUrl, token, authMode: "bearer" };
   return null;
 }
 
@@ -42,8 +54,8 @@ const _ready: Promise<void> = new Promise((resolve) => {
   _resolveReady = resolve;
 });
 
-function applyConfig(config: { baseUrl: string; token: string }) {
-  window.__HOUSTON_ENGINE__ = config;
+function applyConfig(config: EngineConfig) {
+  window.__HOUSTON_ENGINE__ = { baseUrl: config.baseUrl, token: config.token };
   _client = new HoustonClient(config);
   if (_resolveReady) {
     _resolveReady();
@@ -56,6 +68,12 @@ function applyConfig(config: { baseUrl: string; token: string }) {
 const initial = resolveConfig();
 if (initial) {
   applyConfig(initial);
+  // Cloud mode: confirm the box is actually reachable from the webview; if not
+  // (e.g. duplicate-CORS "Load failed"), revert to the local engine + reload so
+  // the app isn't stuck on a screen whose data can never load.
+  if (initial.authMode === "query") {
+    void verifyCloudOrRevert();
+  }
 }
 
 // Race-safe fallback: pull the handshake directly from Tauri. Wins the race
@@ -169,6 +187,9 @@ listen<{ baseUrl: string; token: string }>(
 listen<{ baseUrl: string; token: string }>(
   "houston-engine-restarted",
   (ev) => {
+    // In cloud mode the local sidecar isn't our engine — ignore its restarts
+    // so they can't hijack the connection away from the box.
+    if (isCloudEngineActive()) return;
     applyConfig(ev.payload);
     if (_ws) {
       try {

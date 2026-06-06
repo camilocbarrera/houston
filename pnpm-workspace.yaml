@@ -3,6 +3,7 @@ packages:
   - "app"
   - "mobile"
   - "houston-relay"
+  - "cloud"
   - "examples/*"
 
 # Approve native build scripts (pnpm 10 blocks dependency postinstall by

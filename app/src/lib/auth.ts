@@ -107,6 +107,65 @@ export const signInWithGoogle = (): Promise<void> => signInWithProvider("google"
 export const signInWithMicrosoft = (): Promise<void> => signInWithProvider("azure");
 
 /**
+ * TEMPORARY email + password sign-in. Unlike OAuth there's no browser
+ * hand-off / deep-link round trip — Supabase returns the session inline, so we
+ * write it straight into the cache `useSession` reads (same belt-and-suspenders
+ * as the OAuth paths, since `onAuthStateChange` has been observed to skip).
+ *
+ * Here so the desktop can sign into the shared Houston Cloud project without
+ * the Google provider configured. Remove once OAuth is set up on that project.
+ */
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  if (!isAuthConfigured()) throw new Error("Auth not configured");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  applySessionToCache(data.session ?? null);
+  analytics.track("user_signed_in", { provider: "password" });
+  logger.info(`[auth] session established (password) for ${data.user?.email}`);
+}
+
+/**
+ * Magic-link sign-in. Supabase emails a one-click link; we point its redirect
+ * at the SAME `gethouston.ai/auth/callback` bridge the OAuth flow uses, so the
+ * link forwards a PKCE `code` into the `houston://auth-callback` deep link and
+ * the existing {@link installDeepLinkListener} completes the exchange — no new
+ * callback plumbing. Returns once the email is sent; the session lands when the
+ * user clicks the link.
+ */
+export async function signInWithMagicLink(email: string): Promise<void> {
+  if (!isAuthConfigured()) throw new Error("Auth not configured");
+  pendingProvider = null;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: REDIRECT_URI },
+  });
+  if (error) throw error;
+  logger.info(`[auth] magic link sent to ${email}`);
+}
+
+/**
+ * TEMPORARY email + password sign-up. If the project has "Confirm email" on,
+ * `data.session` is null until the user confirms — surface that to the caller
+ * so the UI can tell them to check their inbox. Companion to
+ * {@link signInWithPassword}; remove with it.
+ */
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<{ needsConfirmation: boolean }> {
+  if (!isAuthConfigured()) throw new Error("Auth not configured");
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw error;
+  if (data.session) {
+    applySessionToCache(data.session);
+    analytics.track("user_signed_in", { provider: "password" });
+    logger.info(`[auth] session established (signup) for ${data.user?.email}`);
+    return { needsConfirmation: false };
+  }
+  return { needsConfirmation: true };
+}
+
+/**
  * Sign out: clear the Supabase session (our Keychain storage adapter
  * removes the tokens), fire the sign-out event, and reset PostHog's
  * distinct_id so subsequent anonymous events don't accrue to the prior user.

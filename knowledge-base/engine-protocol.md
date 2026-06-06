@@ -328,6 +328,7 @@ forwarder sends — essential for remote clients where bandwidth matters.
 | `*` | **Firehose.** Delivers every event regardless of its event_topic. The desktop app uses this so it doesn't need to track per-agent / per-session subscriptions. Remote clients should prefer narrower topics. |
 | `session:{key}` | `FeedItem`, `SessionStatus`, `AuthRequired` |
 | `agent:{path}` | `ActivityChanged`, `SkillsChanged`, `FilesChanged`, `ConfigChanged`, `ContextChanged`, `LearningsChanged`, `ConversationsChanged` |
+| `workspace:{id}` | `AgentsChanged` — the workspace's agent roster changed (create / delete / rename / recolor). Emitted by the workspace-scoped agent routes (roster mutations bypass the per-agent file watcher), so clients refetch the sidebar list. |
 | `routines:{agent}` | `RoutinesChanged`, `RoutineRunsChanged` |
 | `composio` | `ComposioCliReady`, `ComposioCliFailed` |
 | `scheduler` | `HeartbeatFired`, `CronFired` |
