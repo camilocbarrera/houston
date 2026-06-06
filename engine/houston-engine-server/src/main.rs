@@ -159,6 +159,18 @@ async fn main() {
     // pinned manifest in cli-deps.json.
     spawn_cli_lifecycles(state.clone());
 
+    // Cloud event forwarder. When this engine runs as a per-user cloud box
+    // (Supabase creds + cloud user id present in env), forward every event to
+    // Supabase Realtime so web/mobile clients stay reactive without holding a
+    // direct WS to a box that freezes when idle. A no-op for local / self-hosted
+    // engines where the env vars are absent — the local WS firehose is unchanged.
+    match houston_engine_server::cloud_sink::CloudSinkConfig::from_env() {
+        Some(cloud_cfg) => {
+            houston_engine_server::cloud_sink::spawn(&state.events, cloud_cfg);
+        }
+        None => tracing::debug!("[cloud-sink] disabled (no Supabase creds / cloud user id in env)"),
+    }
+
     let app = build_router(state);
 
     // Block on PATH resolution just before serving. DB init usually
