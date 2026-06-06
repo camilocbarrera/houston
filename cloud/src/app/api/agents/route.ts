@@ -8,6 +8,7 @@
 import { NextResponse } from "next/server";
 import { buildControlPlane } from "@/lib/server/control-plane";
 import { createNamedAgent, ensureWorkspaceAgent } from "@/lib/server/bootstrap";
+import { mirrorAgents } from "@/lib/server/agent-mirror";
 import { getUserId } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -23,6 +24,13 @@ export async function GET() {
       return NextResponse.json({ error: "Deploy your engine first" }, { status: 409 });
     }
     const { workspaceId, agents } = await ensureWorkspaceAgent(box);
+    // Mirror the roster so the desktop (and any non-box client) shows the same
+    // agents. Best-effort — never break the list on a mirror failure.
+    try {
+      await mirrorAgents(userId, workspaceId, agents);
+    } catch (mirrorErr) {
+      console.error("[agents] Supabase mirror failed:", mirrorErr);
+    }
     return NextResponse.json({ workspaceId, agents });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
