@@ -7,6 +7,7 @@
 //! the very first request has to create the workspace + agent).
 
 import { colorIdForIndex } from "@/lib/agent-color";
+import { AGENT_SEED_SKILLS } from "./agent-skills";
 import {
   type Agent,
   type EngineTarget,
@@ -44,6 +45,7 @@ export async function ensureWorkspaceAgent(target: EngineTarget): Promise<AgentB
       configId: "blank",
       color: colorIdForIndex(0),
       claudeMd: DEFAULT_CLAUDE_MD,
+      seeds: AGENT_SEED_SKILLS,
     });
     agents = await listAgents(target, workspace.id);
   }
@@ -69,5 +71,6 @@ export async function createNamedAgent(
     configId: "blank",
     color: colorIdForIndex(colorIndex),
     claudeMd: `# ${name}\n\nYou are a helpful Houston agent running in the cloud.\n`,
+    seeds: AGENT_SEED_SKILLS,
   });
 }
