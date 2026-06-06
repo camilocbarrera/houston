@@ -11,8 +11,20 @@ use houston_engine_core::agents_crud::{self, Agent, CreateAgent, CreateAgentResu
 use houston_engine_core::workspace_context::{self, WorkspaceContext};
 use houston_engine_core::workspaces::{self, CreateWorkspace, RenameWorkspace, Workspace};
 use houston_engine_core::CoreError;
+use houston_ui_events::HoustonEvent;
 use serde::Deserialize;
 use std::sync::Arc;
+
+/// Notify clients that a workspace's agent roster changed so they refetch the
+/// sidebar list. In a cloud box this rides the Supabase sink to every client
+/// (the local WS firehose serves a co-located desktop). Roster mutations don't
+/// go through the file watcher (it watches one agent, not the workspace), so
+/// the route layer is the single place this can be emitted.
+fn emit_agents_changed(st: &ServerState, workspace_id: &str) {
+    st.engine.events.emit(HoustonEvent::AgentsChanged {
+        workspace_id: workspace_id.to_string(),
+    });
+}
 
 pub fn router() -> Router<Arc<ServerState>> {
     Router::new()
@@ -127,7 +139,9 @@ async fn create_agent(
     Path(id): Path<String>,
     Json(req): Json<CreateAgent>,
 ) -> Result<Json<CreateAgentResult>, ApiError> {
-    Ok(Json(agents_crud::create(st.engine.paths.docs(), &id, req)?))
+    let result = agents_crud::create(st.engine.paths.docs(), &id, req)?;
+    emit_agents_changed(&st, &id);
+    Ok(Json(result))
 }
 
 async fn delete_agent(
@@ -135,6 +149,7 @@ async fn delete_agent(
     Path((id, agent_id)): Path<(String, String)>,
 ) -> Result<(), ApiError> {
     agents_crud::delete(st.engine.paths.docs(), &id, &agent_id)?;
+    emit_agents_changed(&st, &id);
     Ok(())
 }
 
@@ -143,12 +158,9 @@ async fn update_agent(
     Path((id, agent_id)): Path<(String, String)>,
     Json(req): Json<UpdateAgent>,
 ) -> Result<Json<Agent>, ApiError> {
-    Ok(Json(agents_crud::update(
-        st.engine.paths.docs(),
-        &id,
-        &agent_id,
-        req,
-    )?))
+    let updated = agents_crud::update(st.engine.paths.docs(), &id, &agent_id, req)?;
+    emit_agents_changed(&st, &id);
+    Ok(Json(updated))
 }
 
 #[derive(Deserialize)]
@@ -162,10 +174,7 @@ async fn rename_agent(
     Path((id, agent_id)): Path<(String, String)>,
     Json(body): Json<RenameAgentBody>,
 ) -> Result<Json<Agent>, ApiError> {
-    Ok(Json(agents_crud::rename(
-        st.engine.paths.docs(),
-        &id,
-        &agent_id,
-        &body.new_name,
-    )?))
+    let renamed = agents_crud::rename(st.engine.paths.docs(), &id, &agent_id, &body.new_name)?;
+    emit_agents_changed(&st, &id);
+    Ok(Json(renamed))
 }

@@ -119,6 +119,10 @@ export type HoustonEvent =
       data: { project_id: string; agent_path: string };
     }
   | {
+      type: "AgentsChanged";
+      data: { workspace_id: string };
+    }
+  | {
       type: "ActivityChanged";
       data: { agent_path: string };
     }

@@ -44,8 +44,10 @@ export async function POST(req: Request) {
     if (!box) {
       return NextResponse.json({ error: "Deploy your engine first" }, { status: 409 });
     }
-    const { workspaceId } = await ensureWorkspaceAgent(box);
-    const agent = await createNamedAgent(box, workspaceId, name.trim());
+    const { workspaceId, agents } = await ensureWorkspaceAgent(box);
+    // Pick the next palette color by roster position so the new agent's helmet
+    // is visually distinct from the existing ones.
+    const agent = await createNamedAgent(box, workspaceId, name.trim(), agents.length);
     return NextResponse.json({ agent });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

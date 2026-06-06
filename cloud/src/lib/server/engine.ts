@@ -48,6 +48,16 @@ export interface StartSessionRequest {
   model?: string;
 }
 
+export interface Activity {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  session_key?: string;
+  agent?: string;
+  updated_at?: string;
+}
+
 interface ErrorBody {
   error?: { code?: string; message?: string };
 }
@@ -132,4 +142,37 @@ export function startSession(
  *  The engine holds one watcher per process; this swaps it to `agentPath`. */
 export function startAgentWatcher(target: EngineTarget, agentPath: string): Promise<void> {
   return call(target, "POST", "/watcher/start", { agentPath });
+}
+
+// Activities (missions) — the board's items. These routes take the agent path
+// as a `?agent_path=` QUERY param, which the preview proxy passes through fine
+// (only path SEGMENTS get the decode treatment), so no body-param trick needed.
+
+export function listActivities(target: EngineTarget, agentPath: string): Promise<Activity[]> {
+  return call(target, "GET", `/agents/activities?agent_path=${encodeURIComponent(agentPath)}`);
+}
+
+export function createActivity(
+  target: EngineTarget,
+  agentPath: string,
+  body: { title: string; description: string; status?: string; session_key?: string },
+): Promise<Activity> {
+  return call(
+    target,
+    "POST",
+    `/agents/activities?agent_path=${encodeURIComponent(agentPath)}`,
+    body,
+  );
+}
+
+export function deleteActivity(
+  target: EngineTarget,
+  agentPath: string,
+  id: string,
+): Promise<void> {
+  return call(
+    target,
+    "DELETE",
+    `/agents/activities/${seg(id)}?agent_path=${encodeURIComponent(agentPath)}`,
+  );
 }

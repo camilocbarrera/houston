@@ -6,7 +6,12 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@upstash/box"],
   // Workspace UI packages ship raw TS/TSX (no build step), so Next must
   // transpile them — same components the desktop app uses.
-  transpilePackages: ["@houston-ai/chat", "@houston-ai/core"],
+  transpilePackages: [
+    "@houston-ai/board",
+    "@houston-ai/chat",
+    "@houston-ai/core",
+    "@houston-ai/layout",
+  ],
 };
 
 export default nextConfig;

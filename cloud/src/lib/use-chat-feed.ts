@@ -36,6 +36,14 @@ export type SessionStatuses = Record<string, Record<string, SessionRunStatus>>;
 export interface ChatFeedState {
   feeds: AgentFeeds;
   statuses: SessionStatuses;
+  /** Bumped whenever an activity-related event arrives, so consumers can
+   *  refetch the board (activity create/status-flip/delete). */
+  activityTick: number;
+  /** Bumped whenever the workspace agent roster changes (agent created /
+   *  deleted / renamed / recolored on ANY client), so the shell refetches the
+   *  sidebar list — this is what makes a new agent appear live in every open
+   *  client at the same time. */
+  agentsTick: number;
 }
 
 /** Fold one event into the prior state (pure — used for backfill + live). */
@@ -51,6 +59,16 @@ function reduceEvent(state: ChatFeedState, ev: HoustonEvent): ChatFeedState {
         [agent_path]: { ...agentBucket, [session_key]: next },
       },
     };
+  }
+  // Activity create / status-flip / delete → nudge consumers to refetch the
+  // board. The engine owns the terminal status flip (→ needs_you) and emits
+  // ActivityChanged; we don't parse it, just count it.
+  if (ev.type.startsWith("Activit")) {
+    return { ...state, activityTick: state.activityTick + 1 };
+  }
+  // Agent roster changed somewhere — nudge consumers to refetch /api/agents.
+  if (ev.type === "AgentsChanged") {
+    return { ...state, agentsTick: state.agentsTick + 1 };
   }
   if (ev.type === "SessionStatus") {
     const { agent_path, session_key, status } = ev.data;
@@ -73,7 +91,7 @@ function reduceEvent(state: ChatFeedState, ev: HoustonEvent): ChatFeedState {
   return state;
 }
 
-const EMPTY: ChatFeedState = { feeds: {}, statuses: {} };
+const EMPTY: ChatFeedState = { feeds: {}, statuses: {}, activityTick: 0, agentsTick: 0 };
 
 export function useChatFeed(userId: string | null): ChatFeedState {
   const [state, setState] = useState<ChatFeedState>(EMPTY);

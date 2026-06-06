@@ -180,6 +180,13 @@ pub enum HoustonEvent {
     // Emitted by agent_store writes AND by the file watcher.
     // Frontend uses these to invalidate TanStack Query caches.
 
+    /// The agent roster of a workspace changed (agent created / deleted /
+    /// renamed / recolored). Workspace-scoped, not per-agent: clients use it to
+    /// refetch the sidebar agent list. Carries `workspace_id` so a client can
+    /// scope the refetch to the affected workspace.
+    AgentsChanged {
+        workspace_id: String,
+    },
     /// Activity list changed (.houston/activity.json).
     ActivityChanged {
         agent_path: String,

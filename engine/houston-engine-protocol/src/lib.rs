@@ -147,6 +147,7 @@ pub fn event_topic(event: &HoustonEvent) -> String {
         }
         HoustonEvent::RoutinesChanged { agent_path }
         | HoustonEvent::RoutineRunsChanged { agent_path } => format!("routines:{agent_path}"),
+        HoustonEvent::AgentsChanged { workspace_id } => format!("workspace:{workspace_id}"),
         HoustonEvent::ActivityChanged { agent_path }
         | HoustonEvent::SkillsChanged { agent_path }
         | HoustonEvent::FilesChanged { agent_path }
@@ -241,6 +242,12 @@ mod tests {
         let ev = HoustonEvent::Toast { message: "x".into(), variant: "info".into() };
         assert_eq!(event_topic(&ev), "toast");
         assert_eq!(event_topic(&HoustonEvent::ComposioCliReady), "composio");
+    }
+
+    #[test]
+    fn event_topic_agents_changed_is_workspace_scoped() {
+        let ev = HoustonEvent::AgentsChanged { workspace_id: "w1".into() };
+        assert_eq!(event_topic(&ev), "workspace:w1");
     }
 
     #[test]

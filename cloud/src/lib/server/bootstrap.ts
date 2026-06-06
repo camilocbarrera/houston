@@ -6,6 +6,7 @@
 //! server-side engine client (the engine boots with an empty `~/.houston`, so
 //! the very first request has to create the workspace + agent).
 
+import { colorIdForIndex } from "@/lib/agent-color";
 import {
   type Agent,
   type EngineTarget,
@@ -41,6 +42,7 @@ export async function ensureWorkspaceAgent(target: EngineTarget): Promise<AgentB
     await createAgent(target, workspace.id, {
       name: DEFAULT_AGENT_NAME,
       configId: "blank",
+      color: colorIdForIndex(0),
       claudeMd: DEFAULT_CLAUDE_MD,
     });
     agents = await listAgents(target, workspace.id);
@@ -53,15 +55,19 @@ export async function ensureWorkspaceAgent(target: EngineTarget): Promise<AgentB
   return { workspaceId: workspace.id, agents };
 }
 
-/** Create an additional named agent in the cloud workspace (multi-agent). */
+/** Create an additional named agent in the cloud workspace (multi-agent).
+ *  `colorIndex` is the agent's position in the roster (used to pick a distinct
+ *  palette color so the new helmet differs from the existing ones). */
 export async function createNamedAgent(
   target: EngineTarget,
   workspaceId: string,
   name: string,
+  colorIndex: number,
 ): Promise<Agent> {
   return createAgent(target, workspaceId, {
     name,
     configId: "blank",
+    color: colorIdForIndex(colorIndex),
     claudeMd: `# ${name}\n\nYou are a helpful Houston agent running in the cloud.\n`,
   });
 }

@@ -138,12 +138,18 @@ importers:
 
   cloud:
     dependencies:
+      '@houston-ai/board':
+        specifier: workspace:*
+        version: link:../ui/board
       '@houston-ai/chat':
         specifier: workspace:*
         version: link:../ui/chat
       '@houston-ai/core':
         specifier: workspace:*
         version: link:../ui/core
+      '@houston-ai/layout':
+        specifier: workspace:*
+        version: link:../ui/layout
       '@supabase/ssr':
         specifier: ^0.10.3
         version: 0.10.3(@supabase/supabase-js@2.107.0)
@@ -153,6 +159,9 @@ importers:
       '@upstash/box':
         specifier: ^0.1.32
         version: 0.1.36(zod@4.3.6)
+      lucide-react:
+        specifier: ^0.577.0
+        version: 0.577.0(react@19.2.0)
       next:
         specifier: ^16
         version: 16.2.7(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -8336,6 +8345,10 @@ snapshots:
   lucide-react@0.468.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  lucide-react@0.577.0(react@19.2.0):
+    dependencies:
+      react: 19.2.0
 
   lucide-react@0.577.0(react@19.2.4):
     dependencies:

@@ -8,10 +8,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  // `data-theme="dark"` flips the @houston-ai/core token vars; the `dark` class
-  // drives Tailwind's `dark:` utility variant. Match the desktop dark theme.
+  // Match the desktop default theme: LIGHT. The @houston-ai/core tokens fall back
+  // to the `:root` (light) palette when no `data-theme="dark"` is set, and no
+  // `dark` class keeps Tailwind's `dark:` variant off — same as the app, whose
+  // loadTheme() defaults to "light" unless the user explicitly picked dark.
   return (
-    <html lang="en" data-theme="dark" className="dark">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

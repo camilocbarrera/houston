@@ -54,12 +54,14 @@ describe("createNamedAgent", () => {
     const second: Agent = { ...agent, id: "a2", name: "Researcher", folderPath: "/p2" };
     mocked.createAgent.mockResolvedValue(second);
 
-    const created = await createNamedAgent(TARGET, "w1", "Researcher");
+    const created = await createNamedAgent(TARGET, "w1", "Researcher", 1);
 
     expect(mocked.createAgent).toHaveBeenCalledWith(
       TARGET,
       "w1",
-      expect.objectContaining({ name: "Researcher", configId: "blank" }),
+      // Index 1 → the second palette color ("forest"), so the new agent's
+      // helmet differs from the default agent's ("charcoal").
+      expect.objectContaining({ name: "Researcher", configId: "blank", color: "forest" }),
     );
     expect(created).toEqual(second);
   });
