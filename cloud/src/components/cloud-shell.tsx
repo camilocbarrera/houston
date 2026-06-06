@@ -143,8 +143,8 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
     };
   });
   const navItems = [
-    { id: "dashboard", label: "Mission Control", icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => {} },
-    { id: "connections", label: "Integrations", icon: <Blend className="h-4 w-4" />, onClick: () => {} },
+    { id: "dashboard", label: "Mission Control", icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => setActiveTab("activity") },
+    { id: "connections", label: "Integrations", icon: <Blend className="h-4 w-4" />, onClick: () => setActiveTab("integrations") },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" />, onClick: () => {} },
   ];
 
