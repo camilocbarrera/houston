@@ -17,6 +17,7 @@ import { analytics } from "./lib/analytics";
 import { setUser as setSentryUser, clearUser as clearSentryUser } from "./lib/sentry";
 import { loadTheme } from "./lib/theme";
 import { isAuthConfigured } from "./lib/supabase";
+import { autoEnableCloudIfAvailable } from "./lib/cloud-engine";
 import { installDeepLinkListener } from "./lib/auth";
 import { useSession } from "./hooks/use-session";
 import { SignInScreen } from "./components/auth/sign-in-screen";
@@ -122,6 +123,15 @@ export default function App() {
       clearSentryUser();
       prevUserIdRef.current = null;
     }
+  }, [session]);
+
+  // Once signed in with no engine mode chosen yet, default to the user's cloud
+  // box if they have one — so data syncs with the web app without hunting for a
+  // toggle. Reloads once into cloud mode; "Use local engine" in the user menu
+  // opts back out. No-op when already cloud/local or when there's no box.
+  useEffect(() => {
+    if (!session?.user) return;
+    void autoEnableCloudIfAvailable();
   }, [session]);
 
   // Intercept all link clicks and open in system browser

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Button } from "@houston-ai/core";
 import { HoustonLogo } from "../shell/experience-card";
-import { onAuthError, signInWithGoogle } from "../../lib/auth";
+import {
+  onAuthError,
+  signInWithGoogle,
+  signInWithMagicLink,
+  signInWithPassword,
+  signUpWithPassword,
+} from "../../lib/auth";
 import { reportBug } from "../../lib/bug-report";
 import { logger } from "../../lib/logger";
 
@@ -32,6 +38,14 @@ export function SignInScreen() {
   );
   const [logsIssueId, setLogsIssueId] = useState<string | null>(null);
 
+  // TEMPORARY email + password path (no OAuth provider setup needed). Remove
+  // once Google is configured on the shared Cloud project.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [pwMode, setPwMode] = useState<"signin" | "signup">("signin");
+  const [pwPending, setPwPending] = useState(false);
+  const [pwNotice, setPwNotice] = useState<string | null>(null);
+
   // Surface OAuth errors that happen AFTER the browser hands off (provider
   // rejection, code-exchange failure, identity already linked to another
   // user). Without this the user only saw the "kick off" failure path and
@@ -56,6 +70,49 @@ export function SignInScreen() {
       // SignInScreen itself unmounts when the deep-link callback flips the
       // session, so we don't need a "waiting for callback" loading state.
       setPending(null);
+    }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwPending(true);
+    setError(null);
+    setPwNotice(null);
+    try {
+      if (pwMode === "signup") {
+        const { needsConfirmation } = await signUpWithPassword(email.trim(), password);
+        if (needsConfirmation) {
+          setPwNotice(`Account created. Check ${email.trim()} to confirm, then sign in.`);
+          setPwMode("signin");
+        }
+      } else {
+        await signInWithPassword(email.trim(), password);
+      }
+      // On success the SignInScreen unmounts once the session lands.
+    } catch (err) {
+      logger.error(`[auth] password ${pwMode} failed: ${err}`);
+      setError(prettifyAuthError(err instanceof Error ? err.message : String(err)));
+    } finally {
+      setPwPending(false);
+    }
+  };
+
+  const handleMagicLink = async () => {
+    if (!email.trim()) {
+      setError("Enter your email first.");
+      return;
+    }
+    setPwPending(true);
+    setError(null);
+    setPwNotice(null);
+    try {
+      await signInWithMagicLink(email.trim());
+      setPwNotice(`Magic link sent to ${email.trim()}. Open it to finish signing in.`);
+    } catch (err) {
+      logger.error(`[auth] magic link failed: ${err}`);
+      setError(prettifyAuthError(err instanceof Error ? err.message : String(err)));
+    } finally {
+      setPwPending(false);
     }
   };
 
@@ -106,6 +163,73 @@ export function SignInScreen() {
         <p className="text-xs text-muted-foreground text-center">
           Wrong browser profile? Just click again to retry.
         </p>
+
+        {/* TEMPORARY email + password form — lets the desktop sign into the
+         * shared Cloud project without the Google provider configured. Remove
+         * once OAuth is set up. */}
+        <div className="flex w-full items-center gap-3">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <form onSubmit={handlePasswordSubmit} className="flex w-full flex-col gap-2">
+          <input
+            type="email"
+            required
+            placeholder="you@example.com"
+            value={email}
+            onChange={(ev) => setEmail(ev.target.value)}
+            className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
+          />
+          <input
+            type="password"
+            required
+            placeholder="Password"
+            value={password}
+            onChange={(ev) => setPassword(ev.target.value)}
+            className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
+          />
+          <Button
+            type="submit"
+            disabled={pwPending || !email || !password}
+            className="h-10 w-full rounded-full"
+          >
+            {pwPending
+              ? "Working..."
+              : pwMode === "signup"
+                ? "Create account"
+                : "Sign in with email"}
+          </Button>
+        </form>
+
+        <div className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void handleMagicLink()}
+            disabled={pwPending}
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
+          >
+            Or email me a magic link
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPwMode((m) => (m === "signin" ? "signup" : "signin"));
+              setError(null);
+              setPwNotice(null);
+            }}
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+          >
+            {pwMode === "signin"
+              ? "No account? Create one"
+              : "Have an account? Sign in"}
+          </button>
+        </div>
+
+        {pwNotice && (
+          <p className="text-xs text-muted-foreground text-center">{pwNotice}</p>
+        )}
 
         {error && (
           <p className="text-xs text-destructive text-center">{error}</p>

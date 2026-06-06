@@ -13,6 +13,7 @@ import {
   type EngineTarget,
 } from "@/lib/server/engine";
 import { getUserId } from "@/lib/supabase/server";
+import { mirrorActivities } from "@/lib/server/activity-mirror";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -35,14 +36,24 @@ function autoTitle(text: string): string {
 }
 
 export async function GET(req: Request) {
-  const box = await boxForUser();
-  if ("error" in box) return NextResponse.json({ error: box.error }, { status: box.status });
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "You must be signed in" }, { status: 401 });
+  const box = await buildControlPlane().store.getByUser(userId);
+  if (!box) return NextResponse.json({ error: "Deploy your engine first" }, { status: 409 });
   const agentPath = new URL(req.url).searchParams.get("agentPath");
   if (!agentPath) {
     return NextResponse.json({ error: "agentPath is required" }, { status: 400 });
   }
   try {
     const activities = await listActivities(box, agentPath);
+    // Mirror to the shared Supabase table so the desktop (and any client that
+    // doesn't call the box) can render the same board. Best-effort: a mirror
+    // failure must not break the board read, so we log and still return.
+    try {
+      await mirrorActivities(userId, agentPath, activities);
+    } catch (mirrorErr) {
+      console.error("[activities] Supabase mirror failed:", mirrorErr);
+    }
     return NextResponse.json({ activities });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

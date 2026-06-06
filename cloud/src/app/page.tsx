@@ -26,6 +26,7 @@ interface BoxHandle {
 export default function Home() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [box, setBox] = useState<BoxHandle | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,6 +55,23 @@ export default function Home() {
     const { error } = await createClient().auth.signInWithOtp({ email });
     setNotice(error ? error.message : `Magic link sent to ${email}.`);
   }, [email]);
+
+  // Email + password — so the web can test with the SAME user as the desktop.
+  // onAuthStateChange (above) flips userId on success and the UI advances.
+  const signInPassword = useCallback(async () => {
+    const { error } = await createClient().auth.signInWithPassword({ email, password });
+    if (error) setNotice(error.message);
+  }, [email, password]);
+
+  const signUpPassword = useCallback(async () => {
+    const { data, error } = await createClient().auth.signUp({ email, password });
+    if (error) {
+      setNotice(error.message);
+      return;
+    }
+    // "Confirm email" on → no session until confirmed.
+    if (!data.session) setNotice(`Account created. Check ${email} to confirm, then sign in.`);
+  }, [email, password]);
 
   const signOut = useCallback(async () => {
     await createClient().auth.signOut();
@@ -92,13 +110,38 @@ export default function Home() {
               onChange={(e) => setEmail(e.target.value)}
               className="rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none"
             />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={signInPassword}
+                disabled={!email || !password}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={signUpPassword}
+                disabled={!email || !password}
+                className="flex-1 rounded-lg border border-input px-4 py-2 text-sm font-semibold text-foreground disabled:opacity-50"
+              >
+                Create account
+              </button>
+            </div>
             <button
               type="button"
               onClick={signIn}
               disabled={!email}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
             >
-              Send magic link
+              Or email me a magic link
             </button>
           </>
         ) : (
