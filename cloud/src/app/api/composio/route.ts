@@ -4,6 +4,8 @@
 import { NextResponse } from "next/server";
 import { boxForUser, isBoxError } from "@/lib/server/box-for-user";
 import { composioApps, composioConnections, composioStatus } from "@/lib/server/engine";
+import { mirrorConnections } from "@/lib/server/connection-mirror";
+import { getUserId } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,16 @@ export async function GET() {
       status.status === "ok"
         ? await Promise.all([composioApps(box), composioConnections(box)])
         : [[], []];
+    // Mirror connected toolkits to Supabase so the desktop (and any non-box
+    // client) sees the same integrations. Best-effort.
+    const userId = await getUserId();
+    if (userId) {
+      try {
+        await mirrorConnections(userId, connections);
+      } catch (mirrorErr) {
+        console.error("[composio] connection mirror failed:", mirrorErr);
+      }
+    }
     return NextResponse.json({ status, apps, connections });
   } catch (err) {
     return NextResponse.json(
