@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { Plus } from "lucide-react";
-import { ScrollArea } from "@houston-ai/core";
+import { ScrollArea, cn } from "@houston-ai/core";
 import { SidebarNavItem } from "./sidebar-nav";
 import { SidebarItemRow } from "./sidebar-item-row";
 import type { SidebarItemRowLabels } from "./sidebar-item-row";
@@ -49,6 +49,15 @@ export interface SidebarProps {
   footer?: ReactNode;
   labels?: SidebarLabels;
   children?: ReactNode;
+  /**
+   * Opt-in mobile drawer. When `onMobileClose` is provided, on narrow screens
+   * (`max-md`) the sidebar becomes an off-canvas drawer toggled by `mobileOpen`,
+   * with a backdrop. On `md+` it's the normal static sidebar. Consumers that
+   * never pass `onMobileClose` (e.g. the desktop app) are completely unaffected
+   * at every width.
+   */
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 export interface SidebarLabels extends SidebarItemRowLabels {
@@ -78,6 +87,8 @@ export function AppSidebar({
   footer,
   labels,
   children,
+  mobileOpen,
+  onMobileClose,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -106,12 +117,30 @@ export function AppSidebar({
   };
 
   const showLogo = logo && !header;
+  const drawer = !!onMobileClose;
 
   return (
     <>
+      {/* Mobile drawer backdrop (opt-in). */}
+      {drawer && (
+        <div
+          aria-hidden="true"
+          onClick={onMobileClose}
+          className={cn(
+            "fixed inset-0 z-40 bg-black/40 md:hidden",
+            mobileOpen ? "block" : "hidden",
+          )}
+        />
+      )}
       <aside
         data-tour-target="sidebar"
-        className="w-[220px] bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0"
+        className={cn(
+          "w-[220px] bg-sidebar text-sidebar-foreground flex flex-col h-full shrink-0",
+          // Off-canvas drawer on mobile, normal static sidebar on md+.
+          drawer &&
+            "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:shadow-xl max-md:transition-transform max-md:duration-200",
+          drawer && (mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"),
+        )}
       >
         {/* Header slot (e.g., WorkspaceSwitcher) */}
         {header}

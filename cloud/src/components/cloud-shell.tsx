@@ -10,7 +10,7 @@
 import { HoustonAvatar, resolveAgentColor } from "@houston-ai/core";
 import { AppSidebar, TabBar, WorkspaceSwitcher } from "@houston-ai/layout";
 import type { SidebarItem } from "@houston-ai/layout";
-import { Blend, LayoutDashboard, Settings } from "lucide-react";
+import { Blend, LayoutDashboard, Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { CloudBoard } from "@/components/cloud-board";
 import { CloudIntegrations } from "@/components/cloud-integrations";
@@ -46,6 +46,8 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
   const [activities, setActivities] = useState<Activity[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [boot, setBoot] = useState("Waking your engine…");
+  // Mobile sidebar drawer (off-canvas on < md; always visible on md+).
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { feeds, statuses, activityTick, agentsTick, composioTick } = useChatFeed(userId);
   const active = agents.find((a) => a.id === activeAgentId) ?? null;
@@ -142,9 +144,14 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
       icon: <HoustonAvatar color={resolveAgentColor(a.color)} diameter={20} running={running} />,
     };
   });
+  // Selecting anything from the sidebar also closes the mobile drawer.
+  const pick = (fn: () => void) => () => {
+    fn();
+    setDrawerOpen(false);
+  };
   const navItems = [
-    { id: "dashboard", label: "Mission Control", icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => setActiveTab("activity") },
-    { id: "connections", label: "Integrations", icon: <Blend className="h-4 w-4" />, onClick: () => setActiveTab("integrations") },
+    { id: "dashboard", label: "Mission Control", icon: <LayoutDashboard className="h-4 w-4" />, onClick: pick(() => setActiveTab("activity")) },
+    { id: "connections", label: "Integrations", icon: <Blend className="h-4 w-4" />, onClick: pick(() => setActiveTab("integrations")) },
     { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" />, onClick: () => {} },
   ];
 
@@ -164,11 +171,30 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
         sectionLabel="Your Agents"
         items={items}
         selectedId={activeAgentId}
-        onSelect={(id) => setActiveAgentId(id)}
+        onSelect={(id) => {
+          setActiveAgentId(id);
+          setDrawerOpen(false);
+        }}
         onAdd={createAgent}
         footer={<CloudUserMenu onSignOut={onSignOut} />}
+        mobileOpen={drawerOpen}
+        onMobileClose={() => setDrawerOpen(false)}
       >
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Mobile top bar: hamburger opens the sidebar drawer. Hidden on md+. */}
+          <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 md:hidden">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open menu"
+              className="rounded-md p-1 text-foreground hover:bg-accent"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="truncate text-sm font-semibold text-foreground">
+              {active?.name ?? "Houston Cloud"}
+            </span>
+          </div>
           {active ? (
             <>
               <TabBar title={active.name} tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
@@ -201,7 +227,7 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
         </main>
       </AppSidebar>
       {notice && (
-        <div className="fixed bottom-4 right-4 max-w-sm rounded-lg border border-border bg-card px-4 py-2 text-sm text-warning shadow">
+        <div className="fixed inset-x-4 bottom-4 z-[60] rounded-lg border border-border bg-card px-4 py-2 text-sm text-warning shadow md:inset-x-auto md:right-4 md:max-w-sm">
           {notice}
         </div>
       )}

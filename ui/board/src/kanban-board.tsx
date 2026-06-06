@@ -115,7 +115,10 @@ export function KanbanBoard({
     // The drag is delegated: handlers live on the container and resolve the
     // dragged card / target column from the DOM (data attributes). The cursor
     // itself is driven by `body` classes (see use-board-drag), not here.
-    <div {...dragHandlers} className="flex-1 flex gap-3 p-3 min-h-0 overflow-hidden">
+    <div
+      {...dragHandlers}
+      className="flex-1 flex gap-3 p-3 min-h-0 max-md:overflow-x-auto md:overflow-hidden"
+    >
       {columnData.map((col) => {
         // `idle | origin | drop-target | forbidden` — see `columnDragRole`. A
         // drop target shows the faint "drop here" ring; the column under the
