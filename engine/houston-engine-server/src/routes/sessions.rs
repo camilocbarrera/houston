@@ -62,6 +62,16 @@ pub struct StartRequest {
     /// Stable conversation slot id. Required — the frontend owns this.
     pub session_key: String,
     pub prompt: String,
+    /// Optional agent path supplied in the body instead of the URL segment.
+    /// Wins over the `:agent_path` path param when present. Exists because some
+    /// ingress proxies (e.g. cloud sandbox preview proxies) percent-decode the
+    /// URL path before routing, which corrupts an agent path carried as a
+    /// percent-encoded single segment. The body is never path-decoded, so a
+    /// remote client behind such a proxy passes the agent path here and POSTs
+    /// to a sentinel segment like `/v1/agents/_/sessions`. Co-located clients
+    /// (desktop) omit it and keep using the URL segment.
+    #[serde(default)]
+    pub agent_path: Option<String>,
     /// Optional pre-built system prompt. Caller (Tauri adapter today) assembles
     /// CLAUDE.md + seed + integration guidance and passes the final string.
     #[serde(default)]
@@ -103,6 +113,8 @@ async fn start_session(
     Path(agent_path): Path<String>,
     Json(req): Json<StartRequest>,
 ) -> Result<Json<StartResponse>, ApiError> {
+    // Body-supplied agent path wins over the URL segment (see StartRequest::agent_path).
+    let agent_path = req.agent_path.clone().unwrap_or(agent_path);
     let agent_dir = resolve_agent_dir(&st.engine.paths, &agent_path);
     let working_dir = req
         .working_dir

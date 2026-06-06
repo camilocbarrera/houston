@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Houston Cloud",
@@ -7,19 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // `data-theme="dark"` flips the @houston-ai/core token vars; the `dark` class
+  // drives Tailwind's `dark:` utility variant. Match the desktop dark theme.
   return (
-    <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-          background: "#0b0b0f",
-          color: "#e7e7ea",
-        }}
-      >
-        {children}
-      </body>
+    <html lang="en" data-theme="dark" className="dark">
+      <body>{children}</body>
     </html>
   );
 }

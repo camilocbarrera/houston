@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Houston Cloud — Next.js control plane: provisions a per-user engine box (swappable backend) and serves the web client. Backend + frontend + Supabase auth in one app.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -13,6 +13,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@houston-ai/chat": "workspace:*",
+    "@houston-ai/core": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.107.0",
     "@upstash/box": "^0.1.32",
@@ -21,9 +23,11 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "tailwindcss": "^4.1.8",
     "typescript": "^5.7.0",
     "vitest": "^2.1.8"
   }

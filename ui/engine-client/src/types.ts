@@ -520,6 +520,14 @@ export interface RunShellRequest {
 export interface SessionStartRequest {
   sessionKey: string;
   prompt: string;
+  /**
+   * Optional agent path carried in the body instead of the URL segment; wins
+   * over the path param when set. For remote clients behind an ingress proxy
+   * that percent-decodes the URL path (corrupting an encoded agent-path
+   * segment) — they POST to a sentinel segment and pass the path here. Desktop
+   * omits it. Mirrors `StartRequest::agent_path` (engine).
+   */
+  agentPath?: string;
   systemPrompt?: string;
   source?: string;
   workingDir?: string;
