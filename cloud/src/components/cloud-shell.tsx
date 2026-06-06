@@ -13,6 +13,7 @@ import type { SidebarItem } from "@houston-ai/layout";
 import { Blend, LayoutDashboard, Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { CloudBoard } from "@/components/cloud-board";
+import { CloudIntegrations } from "@/components/cloud-integrations";
 import { CloudUserMenu } from "@/components/cloud-user-menu";
 import type { Activity } from "@/lib/server/engine";
 import { useChatFeed } from "@/lib/use-chat-feed";
@@ -46,7 +47,7 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
   const [notice, setNotice] = useState<string | null>(null);
   const [boot, setBoot] = useState("Waking your engine…");
 
-  const { feeds, statuses, activityTick, agentsTick } = useChatFeed(userId);
+  const { feeds, statuses, activityTick, agentsTick, composioTick } = useChatFeed(userId);
   const active = agents.find((a) => a.id === activeAgentId) ?? null;
 
   // Bootstrap: workspaces + agents (retries while the box engine boots).
@@ -183,6 +184,8 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
                     onMutated={reloadActivities}
                     onError={setNotice}
                   />
+                ) : activeTab === "integrations" ? (
+                  <CloudIntegrations composioTick={composioTick} onError={setNotice} />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                     {TABS.find((t) => t.id === activeTab)?.label} — coming soon

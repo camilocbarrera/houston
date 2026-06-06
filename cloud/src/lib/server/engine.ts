@@ -176,3 +176,64 @@ export function deleteActivity(
     `/agents/activities/${seg(id)}?agent_path=${encodeURIComponent(agentPath)}`,
   );
 }
+
+// Composio integrations. All flat routes (no agent path in the URL), so they
+// pass through the box proxy unchanged. Login + connect are URL/paste-back
+// flows — the user opens a URL in their own browser and (for login) pastes a
+// key back, so they work headless against a cloud box.
+
+export type ComposioStatus =
+  | { status: "needs_auth" }
+  | { status: "ok"; email?: string | null; org_name?: string | null }
+  | { status: "error"; message: string };
+
+export interface ComposioApp {
+  toolkit: string;
+  name: string;
+  description: string;
+  logo_url: string;
+  categories: string[];
+}
+
+export interface StartLoginResponse {
+  login_url: string;
+  cli_key: string;
+}
+
+export interface StartLinkResponse {
+  redirect_url: string;
+  connected_account_id: string;
+  toolkit: string;
+}
+
+export function composioStatus(target: EngineTarget): Promise<ComposioStatus> {
+  return call(target, "GET", "/composio/status");
+}
+
+export function composioApps(target: EngineTarget): Promise<ComposioApp[]> {
+  return call(target, "GET", "/composio/apps");
+}
+
+/** Connected toolkit slugs (e.g. `["gmail", "slack"]`). */
+export function composioConnections(target: EngineTarget): Promise<string[]> {
+  return call(target, "GET", "/composio/connections");
+}
+
+export function composioStartLogin(target: EngineTarget): Promise<StartLoginResponse> {
+  return call(target, "POST", "/composio/login");
+}
+
+export function composioCompleteLogin(target: EngineTarget, cliKey: string): Promise<void> {
+  return call(target, "POST", "/composio/login/complete", { cliKey });
+}
+
+export function composioConnect(
+  target: EngineTarget,
+  toolkit: string,
+): Promise<StartLinkResponse> {
+  return call(target, "POST", "/composio/connections", { toolkit });
+}
+
+export function composioWatch(target: EngineTarget, toolkit: string): Promise<void> {
+  return call(target, "POST", "/composio/connections/watch", { toolkit });
+}

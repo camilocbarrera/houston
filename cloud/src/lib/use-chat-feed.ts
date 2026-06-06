@@ -44,6 +44,10 @@ export interface ChatFeedState {
    *  sidebar list — this is what makes a new agent appear live in every open
    *  client at the same time. */
   agentsTick: number;
+  /** Bumped on Composio lifecycle/connection events so the Integrations tab
+   *  refetches status + connected toolkits live (a connection landing fires
+   *  ComposioConnectionAdded). */
+  composioTick: number;
 }
 
 /** Fold one event into the prior state (pure — used for backfill + live). */
@@ -70,6 +74,10 @@ function reduceEvent(state: ChatFeedState, ev: HoustonEvent): ChatFeedState {
   if (ev.type === "AgentsChanged") {
     return { ...state, agentsTick: state.agentsTick + 1 };
   }
+  // Composio CLI/connection lifecycle — refetch Integrations state.
+  if (ev.type === "ComposioConnectionAdded" || ev.type === "ComposioCliReady") {
+    return { ...state, composioTick: state.composioTick + 1 };
+  }
   if (ev.type === "SessionStatus") {
     const { agent_path, session_key, status } = ev.data;
     if (
@@ -91,7 +99,13 @@ function reduceEvent(state: ChatFeedState, ev: HoustonEvent): ChatFeedState {
   return state;
 }
 
-const EMPTY: ChatFeedState = { feeds: {}, statuses: {}, activityTick: 0, agentsTick: 0 };
+const EMPTY: ChatFeedState = {
+  feeds: {},
+  statuses: {},
+  activityTick: 0,
+  agentsTick: 0,
+  composioTick: 0,
+};
 
 export function useChatFeed(userId: string | null): ChatFeedState {
   const [state, setState] = useState<ChatFeedState>(EMPTY);
