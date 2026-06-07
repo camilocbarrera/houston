@@ -137,7 +137,9 @@ export function ChatInput({
   const hasContent = canSendEmpty || text.trim().length > 0 || files.length > 0;
 
   return (
-    <div className="shrink-0 px-4 pb-6 pt-2">
+    // Bottom padding clears the iOS home indicator on mobile via the safe-area
+    // inset; on desktop env() resolves to 0 so it stays the original 1.5rem.
+    <div className="shrink-0 px-4 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="max-w-3xl mx-auto relative">
         <ChatInputAttachments
           fileInputRef={fileInputRef}

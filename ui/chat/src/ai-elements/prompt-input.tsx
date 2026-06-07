@@ -1296,7 +1296,7 @@ export const PromptInputSubmit = ({
     <button
       aria-label={isGenerating ? "Stop" : "Submit"}
       className={cn(
-        "flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 transition-colors",
+        "flex size-9 max-md:size-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 transition-colors",
         className,
       )}
       onClick={handleClick}

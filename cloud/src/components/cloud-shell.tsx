@@ -156,7 +156,7 @@ export function CloudShell({ userId, onSignOut }: { userId: string; onSignOut: (
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
       <AppSidebar
         header={
           <WorkspaceSwitcher
